@@ -22,7 +22,9 @@ contract CompoundingBamboo is ERC20("CompoundingBamboo", "cBAMBOO"), Ownable {
     uint public PID;
     uint public MIN_TOKENS_TO_REINVEST = 20;
     uint public REINVEST_REWARD_BIPS = 500;     // 5%
-    uint public ADMIN_FEE_BIPS = 500;           // 5%
+    uint public ADMIN_FEE_BIPS = 250;           // 2.5%
+    uint public PANDA_FEE_BIPS = 250;           // 2.5%   
+    address public pandaAddr; 
     uint constant private BIPS_DIVISOR = 10000;
     uint constant private UINT_MAX = uint(-1);
     // TODO add latest configuration variables
@@ -36,7 +38,8 @@ contract CompoundingBamboo is ERC20("CompoundingBamboo", "cBAMBOO"), Ownable {
     event UpdateMinTokensToReinvest(uint oldValue, uint newValue);
     // TODO add latest events
 
-    constructor(address _sBamboo, address _Bamboo, address _masterChef, uint _pid) public {
+    constructor(address _sBamboo, address _Bamboo, address _masterChef, uint _pid, address _pandaAddr) public {
+        pandaAddr = _pandaAddr;
         sBamboo    = IERC20(_sBamboo);
         Bamboo     = IERC20(_Bamboo);
         stakingContract = MasterChefV2(_masterChef);
@@ -167,6 +170,10 @@ contract CompoundingBamboo is ERC20("CompoundingBamboo", "cBAMBOO"), Ownable {
         uint adminFee = unclaimedRewards.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {require(rewardToken.transfer(owner(), adminFee), "admin fee transfer failed");}
         
+        // pays panda
+        uint pandaFee = unclaimedRewards.mul(PANDA_FEE_BIPS).div(BIPS_DIVISOR);
+        if (pandaFee > 0) {require(rewardToken.transfer(pandaAddr, adminFee), "panda fee transfer failed");}        
+        
         // pays caller
         uint reinvestFee = unclaimedRewards.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {require(rewardToken.transfer(msg.sender, reinvestFee), "reinvest fee transfer failed");}
@@ -183,4 +190,10 @@ contract CompoundingBamboo is ERC20("CompoundingBamboo", "cBAMBOO"), Ownable {
         Bamboobar.enter(amount);
         // TODO - add return value of sbamboo
         }
+
+    // change panda beneficiary
+    function pandaChangeAddr(address _newAddr) external{
+        require(msg.sender == pandaAddr, "caller is not panda")
+        pandaAddr = _newAddr;
+    }
 }
